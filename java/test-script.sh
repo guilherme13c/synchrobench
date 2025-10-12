@@ -1,11 +1,11 @@
 #!/bin/bash
 
 case $1 in
-	"1" )	echo CoarseGrainedListIntSet
-			OUTPUT="CoarseGrainedListIntSet"
+	"1" )	echo CoarseGrainedListBasedSet
+			OUTPUT="CoarseGrainedListBasedSet"
 	;;
-	"2" )	echo HandOverHandListIntSet
-			OUTPUT="HandOverHandListIntSet"
+	"2" )	echo HandOverHandListBasedSet
+			OUTPUT="HandOverHandListBasedSet"
 	;;
 	"3" )	echo LazyLinkedListSortedSet
 			OUTPUT="LazyLinkedListSortedSet"
