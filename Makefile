@@ -28,7 +28,7 @@ ifeq ($(OS_NAME), Darwin)
 endif
 
 ifeq ($(OS_NAME), Linux)
-    JDK_RT ?= $HOME/.local/share/mise/installs/java/corretto-8.462.08.1/jre
+    JDK_RT ?= /home/guilherme13c/.local/share/mise/installs/java/corretto-8.462.08.1/jre/lib/rt.jar
 endif
 
 ifeq ($(OS_NAME), SunOS)
