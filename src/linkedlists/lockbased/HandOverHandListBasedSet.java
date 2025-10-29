@@ -1,5 +1,6 @@
 package linkedlists.lockbased;
 
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import contention.abstractions.AbstractCompositionalIntSet;
@@ -7,12 +8,12 @@ import contention.abstractions.AbstractCompositionalIntSet;
 public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     private class Node {
         protected int key;
-        protected Node next;
+        protected AtomicReference<Node> next;
         private ReentrantLock mutex;
 
-        Node(int item) {
-            key = item;
-            next = null;
+        Node(int key, Node next) {
+            this.key = key;
+            this.next = new AtomicReference<>(next);
             mutex = new ReentrantLock();
         }
 
@@ -30,16 +31,15 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     private Node tail;
 
     public HandOverHandListBasedSet() {
-        head = new Node(Integer.MIN_VALUE);
-        tail = new Node(Integer.MAX_VALUE);
-        head.next = tail;
+        tail = new Node(Integer.MAX_VALUE, null);
+        head = new Node(Integer.MIN_VALUE, tail);
     }
 
     @Override
     public boolean addInt(int x) {
         head.lock();
         Node pred = head;
-        Node curr = pred.next;
+        Node curr = pred.next.get();
 
         try {
             curr.lock();
@@ -47,21 +47,22 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
                 while (curr.key < x) {
                     pred.unlock();
                     pred = curr;
-                    curr = pred.next;
+                    curr = pred.next.get();
                     curr.lock();
                 }
                 if (curr.key == x) {
                     return false;
                 }
-                Node node = new Node(x);
-                node.next = curr;
-                pred.next = node;
+                Node node = new Node(x, curr);
+                pred.next.set(node);
                 return true;
             } finally {
-                if (curr != null) curr.unlock();
+                if (curr != null)
+                    curr.unlock();
             }
         } finally {
-            if (pred != null) pred.unlock();
+            if (pred != null)
+                pred.unlock();
         }
     }
 
@@ -69,7 +70,7 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     public boolean removeInt(int x) {
         head.lock();
         Node pred = head;
-        Node curr = pred.next;
+        Node curr = pred.next.get();
 
         try {
             curr.lock();
@@ -77,53 +78,43 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
                 while (curr.key < x) {
                     pred.unlock();
                     pred = curr;
-                    curr = pred.next;
+                    curr = pred.next.get();
                     curr.lock();
                 }
                 if (curr.key == x) {
-                    pred.next = curr.next;
+                    pred.next.set(curr.next.get());
                     return true;
                 }
                 return false;
             } finally {
-                if (curr != null) curr.unlock();
+                if (curr != null)
+                    curr.unlock();
             }
         } finally {
-            if (pred != null) pred.unlock();
+            if (pred != null)
+                pred.unlock();
         }
     }
 
     @Override
     public boolean containsInt(int x) {
-        head.lock();
         Node pred = head;
-        Node curr = pred.next;
+        Node curr = pred.next.get();
 
-        try {
-            curr.lock();
-            try {
-                while (curr.key < x) {
-                    pred.unlock();
-                    pred = curr;
-                    curr = pred.next;
-                    curr.lock();
-                }
-                return curr.key == x;
-            } finally {
-                if (curr != null) curr.unlock();
-            }
-        } finally {
-            if (pred != null) pred.unlock();
+        while (curr.key < x) {
+            pred = curr;
+            curr = pred.next.get();
         }
+        return curr.key == x;
     }
 
     @Override
     public int size() {
         int count = 0;
 
-        Node curr = head.next;
+        Node curr = head.next.get();
         while (curr.key != Integer.MAX_VALUE) {
-            curr = curr.next;
+            curr = curr.next.get();
             count++;
         }
         return count;
@@ -131,8 +122,8 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
 
     @Override
     public void clear() {
-        head = new Node(Integer.MIN_VALUE);
-        tail = new Node(Integer.MAX_VALUE);
-        head.next = tail;
+        tail = new Node(Integer.MAX_VALUE, null);
+        head = new Node(Integer.MIN_VALUE, tail);
+        head.next.set(tail);
     }
 }
