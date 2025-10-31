@@ -1,6 +1,5 @@
 package linkedlists.lockbased;
 
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import contention.abstractions.AbstractCompositionalIntSet;
@@ -8,12 +7,12 @@ import contention.abstractions.AbstractCompositionalIntSet;
 public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     private class Node {
         protected int key;
-        protected AtomicReference<Node> next;
+        protected Node next;
         private ReentrantLock mutex;
 
-        Node(int key, Node next) {
+        Node(int key) {
             this.key = key;
-            this.next = new AtomicReference<>(next);
+            this.next = null;
             mutex = new ReentrantLock();
         }
 
@@ -31,15 +30,16 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     private Node tail;
 
     public HandOverHandListBasedSet() {
-        tail = new Node(Integer.MAX_VALUE, null);
-        head = new Node(Integer.MIN_VALUE, tail);
+        tail = new Node(Integer.MAX_VALUE);
+        head = new Node(Integer.MIN_VALUE);
+        head.next = tail;
     }
 
     @Override
     public boolean addInt(int x) {
         head.lock();
         Node pred = head;
-        Node curr = pred.next.get();
+        Node curr = pred.next;
 
         try {
             curr.lock();
@@ -47,14 +47,15 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
                 while (curr.key < x) {
                     pred.unlock();
                     pred = curr;
-                    curr = pred.next.get();
+                    curr = pred.next;
                     curr.lock();
                 }
                 if (curr.key == x) {
                     return false;
                 }
-                Node node = new Node(x, curr);
-                pred.next.set(node);
+                Node node = new Node(x);
+                node.next = curr;
+                pred.next = node;
                 return true;
             } finally {
                 if (curr != null)
@@ -70,7 +71,7 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     public boolean removeInt(int x) {
         head.lock();
         Node pred = head;
-        Node curr = pred.next.get();
+        Node curr = pred.next;
 
         try {
             curr.lock();
@@ -78,11 +79,11 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
                 while (curr.key < x) {
                     pred.unlock();
                     pred = curr;
-                    curr = pred.next.get();
+                    curr = pred.next;
                     curr.lock();
                 }
                 if (curr.key == x) {
-                    pred.next.set(curr.next.get());
+                    pred.next = curr.next;
                     return true;
                 }
                 return false;
@@ -99,11 +100,11 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     @Override
     public boolean containsInt(int x) {
         Node pred = head;
-        Node curr = pred.next.get();
+        Node curr = pred.next;
 
         while (curr.key < x) {
             pred = curr;
-            curr = pred.next.get();
+            curr = pred.next;
         }
         return curr.key == x;
     }
@@ -112,9 +113,9 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
     public int size() {
         int count = 0;
 
-        Node curr = head.next.get();
+        Node curr = head.next;
         while (curr.key != Integer.MAX_VALUE) {
-            curr = curr.next.get();
+            curr = curr.next;
             count++;
         }
         return count;
@@ -122,8 +123,8 @@ public class HandOverHandListBasedSet extends AbstractCompositionalIntSet {
 
     @Override
     public void clear() {
-        tail = new Node(Integer.MAX_VALUE, null);
-        head = new Node(Integer.MIN_VALUE, tail);
-        head.next.set(tail);
+        tail = new Node(Integer.MAX_VALUE);
+        head = new Node(Integer.MIN_VALUE);
+        head.next = tail;
     }
 }
